@@ -1,0 +1,484 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detetives do Diagnóstico Precoce</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101a2b;color:#f4f7fb;font-family:Arial,sans-serif;padding:18px}
+main{max-width:760px;margin:auto}
+header{text-align:center;padding:20px 5px}
+header .emoji{font-size:48px}
+h1{color:#83dfca;font-size:27px}
+h2{color:#83dfca}
+.card{background:#1d2b40;border:1px solid #34465f;border-radius:17px;padding:20px;margin:15px 0}
+input,select{width:100%;padding:14px;margin:8px 0 15px;border-radius:10px;border:1px solid #71839b;background:#101a2b;color:white;font-size:16px}
+label{font-size:14px;color:#c5d2e0}
+button{border:0;border-radius:11px;padding:14px;font-size:16px;font-weight:bold;cursor:pointer}
+.primary{background:#83dfca;color:#102337;width:100%;margin-top:12px}
+.secondary{background:#344b65;color:white;width:100%;margin-top:10px}
+.option{display:block;width:100%;text-align:left;background:#293b53;color:white;margin:9px 0;border:1px solid #536983}
+.option:disabled{opacity:1}
+.correct{background:#176b55!important;border-color:#83dfca!important}
+.wrong{background:#853c4c!important}
+.hidden{display:none!important}
+.small{font-size:13px;color:#b9c8d9;line-height:1.5}
+.code{font-size:30px;font-weight:bold;letter-spacing:5px;color:#83dfca;text-align:center;padding:12px}
+.scores{display:flex;gap:10px}
+.score{background:#293b53;padding:13px;border-radius:10px;flex:1;text-align:center;line-height:1.7}
+.progress{height:8px;background:#34465f;border-radius:10px;overflow:hidden;margin:15px 0}
+.bar{height:100%;background:#83dfca;width:0%}
+#feedback{line-height:1.6;margin-top:15px;padding:13px;background:#293b53;border-radius:10px}
+.status{text-align:center;color:#83dfca;font-weight:bold}
+footer{text-align:center;color:#9aabc0;font-size:12px;padding:20px}
+</style>
+</head>
+
+<body>
+<main>
+<header>
+<div class="emoji">🕵️‍♀️🔬</div>
+<h1>Detetives do Diagnóstico Precoce</h1>
+<p>Uma investigação científica sobre câncer, alterações celulares e diagnóstico.</p>
+<p class="small">Jogo educativo • Competição entre equipes</p>
+</header>
+
+<section id="inicio" class="card">
+<h2>Bem-vindos, investigadores!</h2>
+<p>Escolha como deseja participar:</p>
+
+<button class="primary" onclick="criarSala()">CRIAR PARTIDA</button>
+
+<hr style="border-color:#34465f;margin:22px 0">
+
+<h3>Entrar em uma partida</h3>
+<label>Código da sala</label>
+<input id="codigoEntrada" placeholder="Ex.: TESTE01">
+
+<label>Nome da equipe</label>
+<input id="nomeEntrada" placeholder="Ex.: Equipe Azul">
+
+<label>Escolha sua equipe</label>
+<select id="equipeEntrada">
+<option value="1">Equipe 1</option>
+<option value="2">Equipe 2</option>
+</select>
+
+<button class="secondary" onclick="entrarSala()">ENTRAR NA PARTIDA</button>
+
+<p class="small">O organizador cria a sala e compartilha o código. Cada equipe entra pelo próprio celular.</p>
+</section>
+
+<section id="sala" class="card hidden">
+<h2>Sala de investigação</h2>
+<p class="small">Compartilhe este código com as equipes:</p>
+<div class="code" id="codigoSala">------</div>
+
+<div class="scores">
+<div class="score"><span id="nomeEquipe1">Equipe 1</span><br><strong id="pontos1">0</strong> pontos</div>
+<div class="score"><span id="nomeEquipe2">Equipe 2</span><br><strong id="pontos2">0</strong> pontos</div>
+</div>
+
+<p class="status" id="statusSala">Aguardando equipes...</p>
+
+<div id="painelOrganizador" class="hidden">
+<button class="primary" id="iniciarBtn" onclick="iniciarPartida()">INICIAR PARTIDA</button>
+<button class="secondary hidden" id="avancarBtn" onclick="avancarPergunta()">PRÓXIMA PERGUNTA</button>
+</div>
+
+<div id="painelEquipe" class="hidden">
+<p id="mensagemEquipe" class="small"></p>
+</div>
+</section>
+
+<section id="perguntaArea" class="card hidden">
+<p class="small" id="fase"></p>
+<h2 id="titulo"></h2>
+<p id="pergunta"></p>
+<div class="progress"><div class="bar" id="barra"></div></div>
+<div id="opcoes"></div>
+<div id="feedback" class="hidden"></div>
+<p class="small" id="resumoRespostas"></p>
+</section>
+
+<section id="final" class="card hidden">
+<div style="text-align:center;font-size:50px">🏆</div>
+<h2 style="text-align:center">Investigação concluída!</h2>
+<h2 id="resultado" style="text-align:center"></h2>
+<div class="scores">
+<div class="score" id="final1"></div>
+<div class="score" id="final2"></div>
+</div>
+<p>Informação, avaliação profissional e investigação adequada são fundamentais para o diagnóstico precoce.</p>
+<button class="primary" onclick="location.reload()">NOVA PARTIDA</button>
+</section>
+
+<footer>Detetives do Diagnóstico Precoce • Projeto educativo</footer>
+</main>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+<script>
+// CONFIGURAÇÃO DO FIREBASE
+const firebaseConfig = {
+  apiKey: "AIzaSyDgdKIAur0eEeVN6fJOpBsGWTVN05eyH4I",
+  authDomain: "detetives-diagnostico-precoce.firebaseapp.com",
+  projectId: "detetives-diagnostico-precoce",
+  storageBucket: "detetives-diagnostico-precoce.firebasestorage.app",
+  messagingSenderId: "193766208016",
+  appId: "1:193766208016:web:5db1cfe7fa08a3c56d9095",
+  measurementId: "G-CQBVF6HY3L"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// PERGUNTAS DO JOGO
+const perguntas = [
+["FASE 1 — CONHEÇA A PACIENTE","O primeiro contato","Ana, de 42 anos, percebeu uma alteração persistente em seu corpo. Qual deve ser sua primeira atitude?",
+["Ignorar, pois toda alteração desaparece sozinha.","Procurar avaliação de um profissional de saúde.","Tomar medicamentos por conta própria.","Concluir que é câncer sem exames."],1,
+"Alterações persistentes devem ser avaliadas por um profissional. Sintomas isolados não confirmam câncer."],
+
+["FASE 1 — CONHEÇA A PACIENTE","Histórico importa","Por que o histórico pessoal e familiar pode ser importante?",
+["Substitui todos os exames.","Ajuda a identificar fatores de risco e orientar a investigação.","Confirma sozinho o diagnóstico.","Determina sempre o mesmo tratamento."],1,
+"O histórico ajuda a avaliar riscos e orientar decisões, mas não confirma um diagnóstico sozinho."],
+
+["FASE 2 — O QUE FAZER AGORA?","Investigação clínica","Qual é o objetivo da avaliação clínica inicial?",
+["Definir tratamento sem exames.","Investigar sinais, sintomas e fatores relevantes para decidir os próximos passos.","Evitar encaminhamento médico.","Confirmar qualquer tumor apenas pela conversa."],1,
+"A avaliação clínica reúne informações e orienta a necessidade de exames complementares."],
+
+["FASE 2 — O QUE FAZER AGORA?","Exames complementares","Qual afirmação sobre exames de imagem está correta?",
+["Todo exame de imagem confirma câncer.","Podem localizar e caracterizar alterações, mas nem sempre confirmam sua natureza.","Substituem sempre a biópsia.","Um resultado alterado significa necessariamente câncer."],1,
+"Os exames de imagem auxiliam a investigação. A confirmação depende do contexto clínico e, em muitos casos, da análise de tecido."],
+
+["FASE 3 — O QUE ACONTECE NA CÉLULA?","O DNA","O que é uma mutação genética?",
+["Uma alteração na sequência do material genético.","Uma bactéria que invade a célula.","Uma célula que sempre morre.","Um exame de imagem."],0,
+"Mutação é uma alteração na sequência do DNA. Nem toda mutação causa câncer."],
+
+["FASE 3 — O QUE ACONTECE NA CÉLULA?","Crescimento celular","O câncer pode surgir quando:",
+["Todas as células param de funcionar.","Alterações afetam mecanismos de controle e favorecem a multiplicação celular desordenada.","O organismo produz apenas células normais.","Qualquer alteração celular necessariamente vira câncer."],1,
+"O câncer envolve alterações que podem comprometer o controle da divisão, sobrevivência e comportamento celular."],
+
+["FASE 4 — O INVESTIGADOR MOLECULAR","PCR","Qual é a principal finalidade da técnica PCR?",
+["Ampliar regiões específicas de DNA para facilitar sua detecção e análise.","Produzir imagens de órgãos.","Contar todas as células do corpo.","Substituir qualquer exame clínico."],0,
+"A PCR amplifica uma região específica do DNA, permitindo sua análise."],
+
+["FASE 4 — O INVESTIGADOR MOLECULAR","Sequenciamento","O que o sequenciamento genético permite investigar?",
+["Apenas o tamanho de um órgão.","A ordem das bases do DNA em regiões analisadas.","Somente bactérias.","A pressão arterial."],1,
+"O sequenciamento identifica a ordem das bases do DNA e pode detectar variantes genéticas relevantes."],
+
+["FASE 5 — VERDADE OU MITO?","Mito ou verdade?","Todo tumor é maligno?",
+["Verdade: todo tumor é câncer.","Mito: existem tumores benignos e malignos.","Verdade: tumor sempre se espalha.","Mito: nenhum tumor precisa de avaliação."],1,
+"Tumores podem ser benignos ou malignos. A classificação depende de características avaliadas por profissionais."],
+
+["FASE 5 — VERDADE OU MITO?","Diagnóstico precoce","O diagnóstico precoce pode contribuir para:",
+["Garantir cura em todos os casos.","Ampliar as possibilidades de tratamento e melhorar resultados em diferentes tipos de câncer.","Eliminar a necessidade de acompanhamento.","Impedir qualquer doença futura."],1,
+"O diagnóstico precoce pode favorecer o tratamento oportuno, mas não garante cura em todos os casos."],
+
+["FASE 6 — RESOLUÇÃO DO CASO","A decisão correta","Diante de uma suspeita relevante, qual conduta é mais adequada?",
+["Divulgar um diagnóstico definitivo sem confirmação.","Seguir a investigação indicada e buscar avaliação especializada.","Abandonar o acompanhamento se não houver dor.","Iniciar tratamento sem orientação."],1,
+"A investigação deve seguir critérios clínicos e exames apropriados, com acompanhamento profissional."],
+
+["FASE 6 — RESOLUÇÃO DO CASO","O caso de Ana","Qual mensagem resume melhor o trabalho dos detetives do diagnóstico?",
+["Um único exame resolve todos os casos.","Sintomas sempre significam câncer.","Informação, avaliação profissional e investigação adequada são fundamentais.","O diagnóstico pode ser feito pela internet."],2,
+"O diagnóstico é construído com avaliação clínica e exames apropriados. Este jogo não substitui atendimento médico."]
+];
+
+let salaRef = null;
+let pararEscuta = null;
+let papel = "";
+let minhaEquipe = 0;
+let dadosSala = null;
+let enviando = false;
+
+function mostrar(id){
+  document.getElementById(id).classList.remove("hidden");
+}
+function esconder(id){
+  document.getElementById(id).classList.add("hidden");
+}
+function erro(msg){
+  alert(msg);
+}
+
+// ORGANIZADOR CRIA A SALA
+async function criarSala(){
+  try{
+    const codigo = "TESTE01";
+    salaRef = db.collection("partidas").doc("partida_teste");
+
+    const dados = {
+      codigo: codigo,
+      status: "aguardando",
+      pontuacaoEquipe1: 0,
+      pontuacaoEquipe2: 0,
+      nomeEquipe1: "Equipe 1",
+      nomeEquipe2: "Equipe 2",
+      perguntaAtual: 0,
+      respostas: {},
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await salaRef.set(dados,{merge:true});
+
+    papel = "organizador";
+    minhaEquipe = 0;
+    mostrarSala(codigo);
+    ouvirSala();
+
+  }catch(e){
+    console.error(e);
+    erro("Não foi possível criar a partida. Confira a conexão e as regras do Firebase.");
+  }
+}
+
+// EQUIPE ENTRA PELO CÓDIGO
+async function entrarSala(){
+  const codigo = document.getElementById("codigoEntrada").value.trim().toUpperCase();
+  const nome = document.getElementById("nomeEntrada").value.trim();
+  const equipe = Number(document.getElementById("equipeEntrada").value);
+
+  if(!codigo || !nome){
+    erro("Digite o código da sala e o nome da equipe.");
+    return;
+  }
+
+  try{
+    const busca = await db.collection("partidas")
+      .where("codigo","==",codigo)
+      .limit(1).get();
+
+    if(busca.empty){
+      erro("Sala não encontrada. Confira o código.");
+      return;
+    }
+
+    salaRef = busca.docs[0].ref;
+    papel = "equipe";
+    minhaEquipe = equipe;
+
+    const campo = equipe === 1 ? "nomeEquipe1" : "nomeEquipe2";
+    await salaRef.update({[campo]:nome});
+
+    mostrarSala(codigo);
+    ouvirSala();
+
+  }catch(e){
+    console.error(e);
+    erro("Não foi possível entrar na sala. Tente novamente.");
+  }
+}
+
+// ABRE A TELA DA PARTIDA
+function mostrarSala(codigo){
+  esconder("inicio");
+  mostrar("sala");
+  document.getElementById("codigoSala").textContent = codigo;
+
+  if(papel === "organizador"){
+    mostrar("painelOrganizador");
+    esconder("painelEquipe");
+  }else{
+    esconder("painelOrganizador");
+    mostrar("painelEquipe");
+  }
+}
+
+// SINCRONIZA OS CELULARES
+function ouvirSala(){
+  if(pararEscuta) pararEscuta();
+
+  pararEscuta = salaRef.onSnapshot(doc=>{
+    if(!doc.exists) return;
+    dadosSala = doc.data();
+    atualizarTela();
+  },e=>{
+    console.error(e);
+    erro("Erro ao acompanhar a partida.");
+  });
+}
+
+// ATUALIZA PLACAR E PERGUNTA
+function atualizarTela(){
+  if(!dadosSala) return;
+
+  document.getElementById("nomeEquipe1").textContent = dadosSala.nomeEquipe1 || "Equipe 1";
+  document.getElementById("nomeEquipe2").textContent = dadosSala.nomeEquipe2 || "Equipe 2";
+  document.getElementById("pontos1").textContent = dadosSala.pontuacaoEquipe1 || 0;
+  document.getElementById("pontos2").textContent = dadosSala.pontuacaoEquipe2 || 0;
+
+  const status = dadosSala.status;
+  const q = dadosSala.perguntaAtual || 0;
+
+  if(status === "aguardando"){
+    document.getElementById("statusSala").textContent = "Aguardando o início da investigação";
+    esconder("perguntaArea");
+    if(papel === "organizador") mostrar("iniciarBtn");
+    if(papel === "equipe"){
+      document.getElementById("mensagemEquipe").textContent =
+        "Você entrou na sala! Aguarde o organizador iniciar a partida.";
+    }
+  }
+
+  if(status === "jogando"){
+    esconder("iniciarBtn");
+    mostrar("perguntaArea");
+    document.getElementById("statusSala").textContent =
+      "Investigação em andamento • Pergunta " + (q+1) + " de " + perguntas.length;
+    mostrarPergunta();
+    if(papel === "organizador") mostrar("avancarBtn");
+  }
+
+  if(status === "finalizada"){
+    esconder("perguntaArea");
+    esconder("avancarBtn");
+    esconder("painelOrganizador");
+    mostrarFinal();
+  }
+}
+
+// MOSTRA A PERGUNTA ATUAL
+function mostrarPergunta(){
+  const q = dadosSala.perguntaAtual || 0;
+  const p = perguntas[q];
+  if(!p) return;
+
+  document.getElementById("fase").textContent = p[0];
+  document.getElementById("titulo").textContent = p[1];
+  document.getElementById("pergunta").textContent = p[2];
+  document.getElementById("barra").style.width =
+    ((q+1)/perguntas.length*100)+"%";
+
+  const respostas = dadosSala.respostas || {};
+  const atual = respostas[String(q)] || {};
+  const chave = "equipe"+minhaEquipe;
+  const area = document.getElementById("opcoes");
+  area.innerHTML = "";
+
+  const total = Object.keys(atual).length;
+  document.getElementById("resumoRespostas").textContent =
+    "Equipes que já responderam: " + total + " de 2.";
+
+  if(papel === "organizador"){
+    area.innerHTML = "<p class='small'>As equipes respondem em seus próprios celulares. Você controla a próxima pergunta.</p>";
+    return;
+  }
+
+  if(atual[chave] !== undefined){
+    area.innerHTML = "<p class='status'>Sua equipe já respondeu esta pergunta!</p>";
+    const acertou = atual[chave] === p[3][p[4]];
+    const acertouResposta = atual[chave] === p[4];
+    document.getElementById("feedback").classList.remove("hidden");
+    document.getElementById("feedback").innerHTML =
+      (acertouResposta ? "Resposta correta! 🎉" : "Resposta incorreta.") +
+      "<br>" + p[5];
+    return;
+  }
+
+  document.getElementById("feedback").classList.add("hidden");
+
+  p[3].forEach((op,i)=>{
+    const b = document.createElement("button");
+    b.className = "option";
+    b.textContent = String.fromCharCode(65+i)+") "+op;
+    b.onclick = ()=>responder(i);
+    area.appendChild(b);
+  });
+}
+
+// REGISTRA RESPOSTA E PONTUAÇÃO
+async function responder(escolha){
+  if(enviando) return;
+  enviando = true;
+
+  try{
+    await db.runTransaction(async transaction=>{
+      const doc = await transaction.get(salaRef);
+      if(!doc.exists) throw new Error("Partida não encontrada.");
+
+      const dados = doc.data();
+      const q = dados.perguntaAtual || 0;
+      const p = perguntas[q];
+      const respostas = dados.respostas || {};
+      const atual = respostas[String(q)] || {};
+      const chave = "equipe"+minhaEquipe;
+
+      if(dados.status !== "jogando") throw new Error("A partida não está ativa.");
+      if(atual[chave] !== undefined) throw new Error("Sua equipe já respondeu.");
+
+      atual[chave] = escolha;
+      respostas[String(q)] = atual;
+
+      const atualizacao = {respostas:respostas};
+
+      if(escolha === p[4]){
+        const campo = minhaEquipe === 1 ? "pontuacaoEquipe1" : "pontuacaoEquipe2";
+        atualizacao[campo] = (dados[campo] || 0) + 10;
+      }
+
+      transaction.update(salaRef,atualizacao);
+    });
+
+  }catch(e){
+    console.error(e);
+    erro(e.message || "Não foi possível registrar sua resposta.");
+  }finally{
+    enviando = false;
+  }
+}
+
+// ORGANIZADOR INICIA
+async function iniciarPartida(){
+  if(papel !== "organizador") return;
+  try{
+    await salaRef.update({status:"jogando",perguntaAtual:0});
+  }catch(e){
+    console.error(e);
+    erro("Não foi possível iniciar.");
+  }
+}
+
+// ORGANIZADOR AVANÇA
+async function avancarPergunta(){
+  if(papel !== "organizador") return;
+
+  try{
+    const doc = await salaRef.get();
+    const dados = doc.data();
+    const proxima = (dados.perguntaAtual || 0)+1;
+
+    if(proxima >= perguntas.length){
+      await salaRef.update({status:"finalizada"});
+    }else{
+      await salaRef.update({perguntaAtual:proxima});
+    }
+  }catch(e){
+    console.error(e);
+    erro("Não foi possível avançar a pergunta.");
+  }
+}
+
+// RESULTADO FINAL
+function mostrarFinal(){
+  mostrar("final");
+  const p1 = dadosSala.pontuacaoEquipe1 || 0;
+  const p2 = dadosSala.pontuacaoEquipe2 || 0;
+  const n1 = dadosSala.nomeEquipe1 || "Equipe 1";
+  const n2 = dadosSala.nomeEquipe2 || "Equipe 2";
+
+  let resultado = "Empate! As duas equipes foram incríveis!";
+  if(p1 > p2) resultado = n1 + " venceu a investigação!";
+  if(p2 > p1) resultado = n2 + " venceu a investigação!";
+
+  document.getElementById("resultado").textContent = resultado;
+  document.getElementById("final1").textContent = n1 + ": " + p1 + " pontos";
+  document.getElementById("final2").textContent = n2 + ": " + p2 + " pontos";
+}
+</script>
+</body>
+</html>
